@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.59] - 2026-11-20
+
+### Added
+
+- KDE Plasma Wayland (KWin 6.3 and later) gets the virtual pen and touchscreen for `click`, `drag` and `scroll` with `delivery: "background"`, as routes `kwin-pen` and `kwin-touch`: the user's mouse pointer stays where it is. KWin maps the pen to the whole workspace and the touchscreen to the output under the point through `org.kde.KWin.InputDevice`, read back before input, and the server removes what KWin wrote for these devices into `kcminputrc` once they are gone. The point is checked through KWin scripting against KWin's stacking order (panels, popups and notifications included), on the current desktop and activity; Show Desktop and full-screen effects such as the Overview refuse the call. KWin's `SyncWithMouse` tablet option and `KWIN_WAYLAND_EMULATE_TABLET`, which move or click the user's pointer, leave no route. Measured on KWin 6.6.7 on a DRM output with GTK 4.
+
+### Fixed
+
+- A background right click on GNOME 48 and later arrived as a middle click and a middle click as a right click: GNOME 48 changed the stylus button defaults (`button-action` to `right`, `secondary-button-action` to `middle`), and mutter rewrites the pen's buttons by them. The server now sets both actions for its own pen (the settings path keyed by its vendor and product id) before every action, so mutter hands clients the button the pen pressed, and resets them when the pen goes away. Measured with GNOME 48's defaults on GNOME Shell 46, with GTK 4 and with native Wayland and Xwayland Chromium; mutter 48 and later read the same explicit values (from mutter's source). Reported by [@Ondra-Zik](https://github.com/Ondra-Zik), who found the lower button gives a right click in Chromium ([#480](https://github.com/agent-sh/computer-use-linux/issues/480)).
+- A background scroll within 8 seconds of a background click or drag sent nothing: libinput pairs a pen with the first touchscreen it sees and drops that screen's touches while the pen is in proximity, and for 90 ms after it leaves. The same pairing could silence the user's own touchscreen while the pen hovered. The pen now leaves proximity at the end of each action instead of hovering for 8 seconds, and a scroll waits out the 90 ms.
+
+## [0.7.58] - 2026-11-20
+
+### Added
+
+- On GNOME Wayland, `click`, `drag` and `scroll` with `delivery: "background"` go through a virtual pen and touchscreen, so the user's mouse pointer stays where it is ([#480](https://github.com/agent-sh/computer-use-linux/issues/480)). The idea and the tested approach come from [@Ondra-Zik](https://github.com/Ondra-Zik). Mutter gives a tablet tool its own cursor and sends its events through the tablet protocol. Left, right and middle clicks are a pen tap and the upper and lower barrel buttons, a drag is a pen stroke inside one window, and a scroll is a one-finger touch pan (60 logical pixels per notch). The point must be on the target window, on the visible workspace, with no window above it, checked through the GNOME Shell extension before input; a locked screen or an open overview refuses the call. A tap or a touch still focuses the window, apps without tablet support never see the pen, and the pen hovers for 8 seconds after an action. `drag` takes `delivery` and a window target for this. Results name the route `gnome-pen` or `gnome-touch`, and `doctor` reports it in `capabilities.background_pointer`. When mutter maps a device elsewhere than the point needs, the server sets that device's own output setting and resets it when the device goes away. The uinput pointer stays the default: it reaches every client.
+
+## [0.7.57] - 2026-11-20
+
+### Added
+
+- `type_text` and `press_key` take `delivery: "background"`, which reaches the target without moving the user's keyboard focus, the keyboard half of [#480](https://github.com/agent-sh/computer-use-linux/issues/480). The target picks the route, and the result's `background` field names it. An element from `get_app_state` (`element_index`, `element_identifier` or `role`/`name`/`states`) takes text through AT-SPI EditableText at its caret or end, read back like the focused-field fallback; a password field is filled and reported unverifiable. `press_key` on an element runs the AT-SPI action the key means: Enter or space on a button or menu item, space on a check box, radio button or toggle, Enter on a link or on a single-line field with an `activate` action, and nothing else. `browser_tab` sends text (`Input.insertText`, read back in inputs and textareas) and keys (`Input.dispatchKeyEvent`) to a tab of a browser the user started with `--remote-debugging-port`, named by the new `COMPUTER_USE_LINUX_DEVTOOLS` (a port or a `DevToolsActivePort` path; loopback only, and only to a listener of the same user). A terminal named by `tty` or the terminal selectors is reached through kitty remote control, `wezterm cli`, tmux, GNU screen, TIOCSTI where the kernel allows it to this process, or the terminal's pty master through `pidfd_getfd` where ptrace rules allow it, and the result names the channel. On Hyprland with `COMPUTER_USE_LINUX_HYPRLAND_BACKGROUND=1`, a plain window target goes through `send_key_state`. Naming an element or `browser_tab` selects background delivery by itself. `doctor` lists the usable routes in `capabilities.background_input`. Requested by [@Ondra-Zik](https://github.com/Ondra-Zik) ([#480](https://github.com/agent-sh/computer-use-linux/issues/480)).
+- Background delivery reaches a whole window through the agent's own seat where the desktop ships one, the rest of [#480](https://github.com/agent-sh/computer-use-linux/issues/480). On X11, an XInput 2 master pointer and keyboard (`XIChangeHierarchy`, `XISetFocus`, its XTEST device) types into the target while the user's master keeps its focus and cursor; keys a window manager grabs have no agent-seat route, and a master left by a killed server is removed by the next one. On sway 1.10 and later, an `ext-transient-seat-v1` seat with a virtual keyboard and pointer, focused on the target with foreign-toplevel activation; Xwayland windows, GTK and Chromium clients (which never bind a seat added after they start), Alt and Super chords, and chords the sway config binds have no agent-seat route. On Hyprland the route is `sendkeystate` without `COMPUTER_USE_LINUX_HYPRLAND_BACKGROUND`. GNOME, KDE Plasma, COSMIC, niri, labwc and river-classic run one seat and have no agent-seat route. A terminal window no terminal channel reaches falls back to the seat. `click` and `scroll` take `delivery: "background"` with `x`/`y` and a window target for the agent pointer on sway, and on X11 when no window manager runs; the point must be over that window. The X11 master exists only while in use (ten idle minutes, or until the server exits); the sway seat exists for one call, since wtype and similar tools bind the last seat they see. On sway, keys have no agent-seat route outside the default binding mode. `doctor` reports `seat` in `capabilities.background_input` and the route, or why there is none, in `capabilities.background_seat`. Requested by [@Ondra-Zik](https://github.com/Ondra-Zik) ([#480](https://github.com/agent-sh/computer-use-linux/issues/480)).
+- A background call (`type_text`, `press_key`, `click`, `scroll`) that no background route can serve, because the desktop, window manager or app lacks one, is not blocked. The first such call in a server session sends nothing and returns a notice: `ok: false` without `isError`, `background: {"requested": true, "used": false, "delivered": false, "reason": "...", "retry_to_continue": true}`, and a message with the reason and the setting that would open a route where there is one, that normal input moves the user's keyboard focus and pointer, and that [agent-workspace-linux](https://github.com/agent-sh/agent-workspace-linux) gives the agent its own session. Repeating the call, and every later call with no route, goes through normal focused input and reports only `background: {"requested": true, "used": false}`. An element gets keyboard focus through AT-SPI `GrabFocus` first; a `browser_tab` targets the one window whose title contains the tab's name. The notice is per MCP session (each HTTP session has its own). Wrong, ambiguous or stale targets, a terminal pty from another devpts instance, a point outside the target or screen, the X server's Ctrl+Alt+F-key and Ctrl+Alt+BackSpace chords on the agent seat, and failures after input started stay errors.
+- The `press_key` grammar accepts `KP_Enter` (keypad Enter) on every backend.
+
+### Changed
+
+- The npm package README covers the npm install, host quick starts and the wrapper, and links to the main README for tool contracts and desktop notes, which it used to repeat.
+
 ## [0.7.56] - 2026-11-17
 
 ### Added
@@ -1231,7 +1261,10 @@ Wayland first; X11 best effort through AT-SPI and ydotool. Validated against GNO
   status, extension status, ydotool socket readiness, and portal coverage in
   a single JSON document.
 
-[Unreleased]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.56...HEAD
+[Unreleased]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.59...HEAD
+[0.7.59]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.58...v0.7.59
+[0.7.58]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.57...v0.7.58
+[0.7.57]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.56...v0.7.57
 [0.7.56]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.55...v0.7.56
 [0.7.55]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.54...v0.7.55
 [0.7.54]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.53...v0.7.54

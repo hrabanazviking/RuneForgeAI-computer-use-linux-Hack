@@ -445,7 +445,7 @@ dependencies = [
 
 [[package]]
 name = "computer-use-linux"
-version = "0.7.56"
+version = "0.7.59"
 dependencies = [
  "anyhow",
  "atspi",
@@ -474,6 +474,7 @@ dependencies = [
  "tokio",
  "wayland-client",
  "wayland-protocols",
+ "wayland-protocols-misc",
  "wayland-protocols-wlr",
  "x11rb",
  "xkeysym",
