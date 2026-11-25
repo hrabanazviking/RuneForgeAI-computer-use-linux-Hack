@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.62] - 2026-11-24
+
+### Fixed
+
+- Background `scroll` works on a rotated or flipped monitor. The touch pan's device values undo the turn the compositor gives a touchscreen on that monitor, for all eight output transforms: mutter turns by the whole transform (`meta_monitor_manager_get_monitor_matrix`), KWin by the rotation without the flip (`devicePointToGlobalPosition`). Measured with each transform on KWin 6.6 and on GNOME Shell 46 (there with the touchscreen on the whole layout): the touch starts on the point and the finger moves straight up. The turn mutter gives a touchscreen mapped to a monitor is checked against its transform matrices. On KDE, an output rotation `kscreen-doctor -j` cannot give is now no route (the notice, then focused input) instead of an error on every call.
+
+## [0.7.61] - 2026-11-24
+
+### Added
+
+- `tree_detail` on `get_app_state`, `get_tree_page` and post-action `include_tree`: `"minimal"` returns each node as its index, role, name, text that differs from the name, value and distinguishing states only, beside `"compact"` (the default) and `"full"`. On an eBay results page it fit 328 interactive nodes in the inline budget where compact fit 112.
+- `max_tree_bytes` on `get_app_state` and post-action `include_tree` caps the inline tree; `0` returns no nodes while the whole tree is still read, cached under the new `snapshot_id` and written to the spill file. Errors, warnings, truncation and the readiness block are unchanged.
+- `get_app_state` with `interactive_only: true` also keeps the whole compacted tree beside the interactive view, for `get_tree_page` only: actions still resolve against the interactive view exactly as before.
+- `get_tree_page` searches the cached snapshot with `query` (case-insensitive text in a node's name, text or description), `role` and `within` (an `element_index` subtree, bounded on the whole tree), and takes `interactive_only` and `tree_detail`. Measured over an eBay search and listing sequence, tool results fell from about 404 KB (20 calls) to about 41 KB (15 calls).
+- Background `click` and `scroll` take `relative: true`: `x` and `y` measured from the target window's screenshot crop are mapped through the window's bounds and the capture scale to capture pixels, and then go through the same checks as any background point (on the target window, not covered). A client that works in window coordinates, such as a desktop bridge sending window-relative clicks, no longer converts them itself ([#480](https://github.com/agent-sh/computer-use-linux/issues/480)). A relative background call without a window target is refused with nothing sent. Elements and `coordinate_space: "atspi"` still have no background route.
+- `run_batch` runs 1 to 100 desktop tool calls in order in one call. It cannot reach `run_shell`, `js` or itself.
+- `js` and `js_reset`: a persistent Node.js REPL with a `desktop` API for multi-step scripts, opt-in on stdio with `COMPUTER_USE_LINUX_ENABLE_REPL=1` (or `COMPUTER_USE_LINUX_REPL_ONLY=1` for only these two tools). It is never registered over HTTP. Enabling it lets the model run code as the user, like `COMPUTER_USE_LINUX_ENABLE_SHELL=1`. The worker's empty environment, string code generation block and Node permission flag are defence in depth, not a sandbox. Contributed by [@bvolpato](https://github.com/bvolpato) ([#505](https://github.com/agent-sh/computer-use-linux/pull/505)).
+- `accessibility_tree_partial` on `get_app_state` and post-action `include_tree` results: `true` whenever the result holds only the leading nodes of the tree.
+
+### Fixed
+
+- A tree too large to return inline whose spill file could not be written came back as its leading nodes with no field saying so. `accessibility_tree_partial` now marks it, and the `js` worker's `find`, `findAll`, `summary`, `waitFor` and string clicks no longer treat that prefix as the whole tree: `getAppState` pages the rest from the cached snapshot.
+
 ## [0.7.60] - 2026-11-22
 
 ### Fixed
@@ -1267,7 +1290,9 @@ Wayland first; X11 best effort through AT-SPI and ydotool. Validated against GNO
   status, extension status, ydotool socket readiness, and portal coverage in
   a single JSON document.
 
-[Unreleased]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.60...HEAD
+[Unreleased]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.62...HEAD
+[0.7.62]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.61...v0.7.62
+[0.7.61]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.60...v0.7.61
 [0.7.60]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.59...v0.7.60
 [0.7.59]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.58...v0.7.59
 [0.7.58]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.57...v0.7.58
