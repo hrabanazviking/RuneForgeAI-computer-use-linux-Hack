@@ -39,6 +39,7 @@ scripts/install_sh_test.sh
 cargo build --locked
 scripts/mcp_safety_check.py --binary target/debug/computer-use-linux
 scripts/check_plugins.sh --binary target/debug/computer-use-linux
+scripts/check_release_published.sh
 agnix .
 node --check npm/install.js
 node --check npm/bin/computer-use-linux.js
@@ -142,17 +143,18 @@ file.
 
 ## Releases
 
-A release changes these nine files:
+A release is one commit and a tag push. The marketplace serves `main` and every plugin start downloads the version the launcher pins, so `main` must never point the plugin at a version without published binaries; the tag's run moves the plugin itself once they are up.
 
-- `Cargo.toml` and `Cargo.lock`: the package version.
-- `package.json`: the npm version.
-- `plugins/computer-use-linux/bin/computer-use-linux`: the launcher's pinned version.
-- `plugins/computer-use-linux/.claude-plugin/plugin.json` and `plugins/computer-use-linux/.codex-plugin/plugin.json`.
-- `.claude-plugin/marketplace.json`.
-- `pi/extension/generated-tools.ts`: rebuild, then regenerate it with `python3 scripts/generate_pi_tool_catalog.py --binary target/debug/computer-use-linux`.
-- `CHANGELOG.md`: the `[Unreleased]` entries become the version's section, with its compare link.
+1. The release commit, `release: vX.Y.Z`, changes five files:
+   - `Cargo.toml` and `Cargo.lock`: the package version.
+   - `package.json`: the npm version.
+   - `pi/extension/generated-tools.ts`: rebuild, then regenerate it with `python3 scripts/generate_pi_tool_catalog.py --binary target/debug/computer-use-linux`.
+   - `CHANGELOG.md`: the `[Unreleased]` entries become the version's section, with its compare link.
 
-`scripts/check_plugins.sh` fails when a plugin version differs from `Cargo.toml`, CI fails when `package.json` does, the MCP safety check fails when the server version does, and the Pi catalog `--check` fails until the catalog is regenerated. Push a `vX.Y.Z` tag to publish.
+   Land it, then push the `vX.Y.Z` tag on it. Do not cancel the tag's run; if it fails or is cancelled, rerun it until the release is published.
+2. The tag's run points the plugin at the release: once the release assets are uploaded, its `point the plugin at the release` job runs `scripts/bump_plugin_version.sh X.Y.Z` on `main` and pushes the result as `plugin: point at vX.Y.Z`. The script moves the launcher's `version=`, `plugins/computer-use-linux/.claude-plugin/plugin.json`, `plugins/computer-use-linux/.codex-plugin/plugin.json` and `.claude-plugin/marketplace.json`, and refuses while any release asset the launcher downloads, or its `.sha256`, is missing. Run it by hand only if that job failed.
+
+`scripts/check_plugins.sh` fails when the plugin manifests and the launcher disagree or name a version newer than `Cargo.toml`; the `pinned release published` CI check (`scripts/check_release_published.sh`) fails on pull requests and on `main` while the plugin names an unpublished release. CI fails when `package.json` differs from `Cargo.toml`, the MCP safety check fails when the server version does, and the Pi catalog `--check` fails until the catalog is regenerated.
 
 ## Security
 

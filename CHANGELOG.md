@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.66] - 2026-11-27
+
+### Changed
+
+- The tag's release run now points the plugin at the new version itself, once the release assets are uploaded, so pushing the tag is the whole release.
+- npm publishing uses trusted publishing (GitHub OIDC) instead of a stored token, and published versions carry provenance.
+
+## [0.7.65] - 2026-11-27
+
+### Added
+
+- Screenshots come from `grim` ahead of the DBus routes on a Wayland session whose compositor implements wlr-screencopy (Sway, Hyprland, niri, river, labwc) when grim is installed: no consent dialog, nothing written to disk, and exact at fractional scales. `COMPUTER_USE_LINUX_SCREENSHOT_BACKEND=grim` forces it; `doctor` reports `grim` as a screenshot route there. Thanks to [@codelllc09](https://github.com/codelllc09) ([#523](https://github.com/agent-sh/computer-use-linux/pull/523)).
+
+### Fixed
+
+- `press_key` chords reach wtype on a session whose portal exports RemoteDesktop but answers `CreateSession` with response code 2 before any consent dialog (no backend serves it, as with `xdg-desktop-portal-gnome` or `-gtk` on niri), when ydotool is absent and the portal is not forced. Response code 1, a cancellation in the portal dialog, and failures at later steps stay final. Thanks to [@codelllc09](https://github.com/codelllc09) ([#522](https://github.com/agent-sh/computer-use-linux/pull/522)).
+- The Claude Code and Codex plugin starts when the release it pins cannot be downloaded. It runs the newest cached version and tries the pinned one again in the background, instead of failing every start with curl's 404. The plugin version now moves to a release only after the release is published: `scripts/bump_plugin_version.sh` refuses until every asset is downloadable, and a CI check fails while the plugin names a version without published binaries. Thanks to [@martin152](https://github.com/martin152) ([#524](https://github.com/agent-sh/computer-use-linux/issues/524)).
+- The plugin no longer downloads all three binaries before the MCP server can answer. A detached process downloads them, main binary first, keeps going when the client gives up on the handshake, and resumes a partial file at the next start, so a slow link no longer starts from zero each time. After an update, the cached version runs while the new one is still downloading (`COMPUTER_USE_LINUX_PLUGIN_UPDATE_WAIT`, default 5 seconds). The server tries the activity indicator again on a later action when its binary was missing, so it appears once the download lands, and a failed helper no longer holds back the other one. Thanks to [@martin152](https://github.com/martin152) ([#525](https://github.com/agent-sh/computer-use-linux/issues/525)).
+
 ## [0.7.64] - 2026-11-26
 
 ### Fixed
@@ -1302,7 +1321,9 @@ Wayland first; X11 best effort through AT-SPI and ydotool. Validated against GNO
   status, extension status, ydotool socket readiness, and portal coverage in
   a single JSON document.
 
-[Unreleased]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.64...HEAD
+[Unreleased]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.66...HEAD
+[0.7.66]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.65...v0.7.66
+[0.7.65]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.64...v0.7.65
 [0.7.64]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.63...v0.7.64
 [0.7.63]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.62...v0.7.63
 [0.7.62]: https://github.com/agent-sh/computer-use-linux/compare/v0.7.61...v0.7.62
